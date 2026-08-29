@@ -1,5 +1,38 @@
 import NextAuth from "next-auth";
+import Credentials from "next-auth/providers/credentials";
 import Google from "next-auth/providers/google";
+
+// Local-development-only passwordless login. When on, it lets you sign in as
+// any address the allow-list already permits (roster or ALLOWED_EMAILS)
+// without configuring Google OAuth. Gated two ways:
+//   1. `process.env.NODE_ENV !== "production"` — a normal `next build`
+//      constant-folds this to `false` and the provider is tree-shaken out
+//      of the image entirely.
+//   2. `AUTH_DEV_LOGIN === "true"` — explicit opt-in.
+// Gate 1 is NOT airtight on its own: `next build --debug-prerender` (and
+// `experimental.allowDevelopmentBuild`) freeze NODE_ENV to "development" at
+// bundle time, leaving a live runtime check. The module-load guard below is
+// the backstop — it reads the *real* runtime environment and refuses to
+// boot if dev login is somehow live on a deployed instance.
+export const DEV_LOGIN_PROVIDER_ID = "dev-login";
+export const devLoginEnabled =
+  process.env.NODE_ENV !== "production" && process.env.AUTH_DEV_LOGIN === "true";
+
+// `globalThis.process.env.*` is a dynamic member access that bundlers do NOT
+// constant-fold (only the literal `process.env.NODE_ENV` is inlined), so this
+// sees the actual runtime values even in a `--debug-prerender` build. Two
+// independent deployment signals: a production NODE_ENV, or running on Fly
+// (`FLY_APP_NAME`, the same signal the API uses in api.main).
+if (
+  devLoginEnabled &&
+  (globalThis.process?.env?.NODE_ENV === "production" ||
+    globalThis.process?.env?.FLY_APP_NAME)
+) {
+  throw new Error(
+    "AUTH_DEV_LOGIN is enabled on a deployed runtime — refusing to start. " +
+      "It is a local-development-only passwordless login; unset AUTH_DEV_LOGIN.",
+  );
+}
 
 // Env-var fallback for the bootstrap case (fresh install, roster still
 // empty). Once any Person row exists with an email, the backend's
@@ -94,7 +127,39 @@ function auditAuth(
 }
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
-  providers: [Google],
+  providers: [
+    Google,
+    ...(devLoginEnabled
+      ? [
+          Credentials({
+            id: DEV_LOGIN_PROVIDER_ID,
+            name: "Dev login (local)",
+            credentials: { email: { label: "Email", type: "email" } },
+            // No password. The allow-list is still enforced via the shared
+            // `checkEmailAllowed` helper, so this grants exactly the access
+            // a real Google sign-in would — minus the OAuth round-trip.
+            authorize: async (creds) => {
+              const email = String(creds?.email ?? "").trim().toLowerCase();
+              // Basic shape check — `checkEmailAllowed` is the real gate.
+              if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return null;
+              const { allowed, source } = await checkEmailAllowed(email);
+              if (!allowed) {
+                // Mirror the Google denial path so failed dev-login
+                // attempts still leave an audit trail.
+                auditAuth(
+                  "auth_login",
+                  `Login denied: ${email} (${DEV_LOGIN_PROVIDER_ID}, not in ${source})`,
+                  email,
+                  { denied: true, reason: "not_in_allowlist", source, provider: DEV_LOGIN_PROVIDER_ID },
+                );
+                return null;
+              }
+              return { id: email, email, name: email.split("@")[0] };
+            },
+          }),
+        ]
+      : []),
+  ],
   // 24h JWT TTL. Defence in depth alongside the `authorized` re-check
   // below — a session that somehow drifts out of sync with the roster
   // is corrected on next access, but also naturally expires within a
@@ -104,11 +169,27 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     signIn: "/signin",
     error: "/signin",
   },
+  logger: {
+    error: (error: Error & { type?: string }) => {
+      // A rejected dev-login (`authorize` -> null) is an expected outcome
+      // that the sign-in page already turns into a friendly `?error=` — it
+      // is not a server fault, so don't dump next-auth's full stack trace
+      // for it every time. Everything else logs as normal.
+      if (error?.name === "CredentialsSignin" || error?.type === "CredentialsSignin") {
+        return;
+      }
+      console.error(error);
+    },
+  },
   callbacks: {
     // Strict initial gate. Requires `email_verified === true` explicitly: a
     // missing / non-boolean value fails closed. Google always returns true
     // for real accounts.
-    signIn: async ({ profile }) => {
+    signIn: async ({ profile, account }) => {
+      // Dev-login provider: `authorize()` already ran `checkEmailAllowed`
+      // (and audited denials). Gated on `devLoginEnabled` so this branch is
+      // constant-folded away in a normal production build.
+      if (devLoginEnabled && account?.provider === DEV_LOGIN_PROVIDER_ID) return true;
       const email = profile?.email?.toLowerCase();
       if (!email) {
         auditAuth("auth_login", "Login denied: no email", null, { denied: true, reason: "no_email" });
@@ -156,9 +237,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     },
   },
   events: {
-    signIn: ({ user }) => {
+    signIn: ({ user, account }) => {
       const email = user.email?.toLowerCase() ?? null;
-      auditAuth("auth_login", `Login: ${email ?? "unknown"}`, email, { provider: "google" });
+      auditAuth("auth_login", `Login: ${email ?? "unknown"}`, email, {
+        provider: account?.provider ?? "unknown",
+      });
     },
     signOut: (message) => {
       // JWT strategy sends { token }, session strategy sends { session }.
