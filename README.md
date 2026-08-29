@@ -177,6 +177,70 @@ The first time you visit the app, you'll be guided through a wizard to set up yo
 
 After onboarding, the Executive will reference your specific company context in every response.
 
+## Using Open Executive Effectively
+
+Open Executive is a senior advisor and chief-of-staff, not an autonomous operator. It works best when it has real context to reason over and a clear picture of who holds which decisions. The following is how to get value out of it day to day.
+
+### Give it real context
+
+The quality of every answer is proportional to what the Executive knows about your company.
+
+- **Complete the onboarding properly.** Vague inputs produce generic advice. Revisit the **Company Profile** page whenever strategy, funding, competitors, or org structure change — it grounds every specialist.
+- **Upload the documents that matter** via the **Knowledge Base**: pitch deck, financial model, board decks, strategy memos, the employee handbook, key contracts. The Executive retrieves from these when relevant. Use **Query mode** to check what it would actually pull for a given question.
+- **Set up People and Departments.** Add each person with their role, response SLA, preferred channel, and **authority scopes** (e.g. "approve spend under $10k", "sign off on hiring"). Give each department an **authority level** — act automatically, propose for approval, or always escalate. This is how the Executive decides who to ask for any given approval and whether it can act on its own.
+
+### Talk to it like one person
+
+- Ask real business questions in plain language — "should we raise now or wait two quarters?", "draft a comp band for a staff engineer", "what's our exposure if this customer churns?". There is no prompt engineering; the Executive pulls in whichever specialists a question needs.
+- Toggle **Committee** on decisions that matter. It's a slower pass where reviewers challenge the draft answer before you see it.
+- Any channel works — web UI, Slack, Discord, Telegram, email, CLI. They share one memory and one company context, so start a thread on your phone and finish it on the web.
+- Use **Ask OE** (the panel on the right of every page, or Ctrl/Cmd + .) to ask what a screen means or to fill a form in plain language.
+
+### Run your day from the briefing
+
+- **Today / Morning Brief** is the home surface: what needs you right now, split into **Needs you** (waiting on your call) and **Across the team**. It shows department goal health and which people have overdue items.
+- Click any briefing item to open a chat thread with the full context already loaded — that's the intended way to act on something rather than re-explaining it.
+- **Proposals** route automatically to whoever has authority over them. Approve or dismiss from the card, or discuss first in chat and approve there.
+
+### Artifacts: documents the Executive writes for you
+
+An **artifact** is a finished document the Executive produces for you to read — a memo, a competitor teardown, a board-deck outline, the output of a scheduled job. It is **not** a task waiting for your approval, and **"draft" does not mean unfinished**. In the **Artifacts** section they're grouped into **Drafts** (documents the Executive wrote on its own initiative and flagged for your attention) and **Workflows** (outputs of a job run) — that label is just where the document came from, not a status.
+
+**What you do with an artifact: read it.** That is the whole point. There is no publish, send, sign-off, or edit step.
+
+**Where it shows up:**
+
+- If the Executive wrote it *for your attention*, it appears in **Today → Needs you** as a document card with a short "why this is worth your time" note. From that card you can hit **Discuss** (opens a chat with the full document loaded so you can ask questions about it) or **✓ Mark reviewed** to clear it. Marking it reviewed simply takes it off your list — nothing else happens, and the document is not lost.
+- It *also* lives permanently in the **Artifacts** section, whether or not you've reviewed it. There the actions are **Copy**, **Download .md**, **Archive** (hide it from the default list; reversible), and **Delete** (permanent). Archive and Delete are housekeeping — an artifact does not get "finished" by archiving it, you are just tidying up once it has served its purpose.
+
+**If reading an artifact makes you want to act on it** — send it to your board, start a project, dig into one section — that is a new request you make in chat. The artifact itself just stays in the library as the record that the Executive produced it.
+
+**One limitation worth knowing:** the Executive cannot reach into the Artifacts library on its own. In a fresh chat, asking it to "pull up that teardown you wrote last week" will not work. Use the **Discuss** button while the artifact is still in your Today list, or **Copy** it from the Artifacts page and paste it into the conversation.
+
+### Delegate recurring work to Jobs
+
+- **Jobs (Workflows)** are multi-step runs that produce a real deliverable — a board deck, a go-to-market plan, a performance review — not just a chat reply. Start one and watch it stream.
+- Put a workflow on a **schedule** (e.g. every Monday 09:00) so it runs unprompted; the output DMs to whoever you nominate and appears in Artifacts.
+- Build a **custom workflow** by chaining specialist, synthesis, and approval-gate steps. A workflow that needs your sign-off mid-run pauses and asks — it will not push a consequential action through on its own.
+
+### Tell it what to watch
+
+- Add monitors on the **Watch List** — stock tickers, RSS/Atom feeds, vendor status pages, regulatory filings, web-search queries, or specific web pages. Qualifying signals flow into your briefing on the same path as inbound email.
+- Web-search monitors cost per check; prefer slower cadences for those. Ticker, filing, and page monitors are cheap. You can edit the list from chat too.
+
+### Keep its memory honest
+
+- The Executive remembers **decisions**, **initiatives**, and **advice** across every session and channel. Reference them naturally — "what did we decide about the pricing change?" — and it will recall the rationale.
+- Review and correct that memory on the **Pulse** page. An out-of-date decision left uncorrected will bias future advice.
+
+### Set expectations
+
+- **Quiet is the default.** No proposals in your briefing means nothing needs you — it is not a sign something is broken.
+- **Verify before you act on anything material.** Treat an artifact as a well-researched briefing, not a finished decision. The Executive is strongest as a synthesizer and a forcing function, weakest when you skip the review.
+- Consequential actions (offers, broadcasts, spend) go through approval gates and authority scopes by design — keep those configured and they will do their job.
+
+The in-app **User Guide** (pinned in the nav next to Settings) documents every page in this depth, and **Architecture** explains how the system works under the hood.
+
 ## Interfaces
 
 | Interface | How to Use |
