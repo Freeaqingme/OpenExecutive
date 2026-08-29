@@ -2090,7 +2090,32 @@ user_guide:
 auth:
   ui_provider: |
     NextAuth.js with Google OAuth, JWT session strategy (24h maxAge).
-    Lives in packages/ui/src/auth.ts. Gate is enforced at two points:
+    Lives in packages/ui/src/auth.ts.
+    A second provider, `dev-login` (Credentials, id "dev-login"), is
+    registered ONLY when `NODE_ENV != production` AND `AUTH_DEV_LOGIN
+    == "true"`. It is passwordless: `authorize()` takes an email, does a
+    basic shape check, runs the same `checkEmailAllowed` helper (auditing
+    denials, same as the Google path), and mints a session iff the
+    address is on the allow-list — i.e. it grants exactly what a Google
+    sign-in would, without the OAuth round-trip. Intended for local dev
+    so contributors don't need a Google OAuth client.
+    Defence: a normal `next build` constant-folds `process.env.NODE_ENV`
+    to "production", so `devLoginEnabled` is false and the provider, the
+    `signIn` short-circuit for it, and the module-load guard string are
+    all tree-shaken out. But `next build --debug-prerender` /
+    `experimental.allowDevelopmentBuild` freeze NODE_ENV to "development",
+    leaving live runtime checks — so auth.ts ALSO has a module-load guard
+    that reads the real runtime env via `globalThis.process` (which
+    bundlers don't fold) and THROWS if `devLoginEnabled` is true and
+    either `NODE_ENV === "production"` or `FLY_APP_NAME` is set (same
+    deployed-runtime signal the API uses). The `signIn` callback
+    short-circuit and the sign-in page's dev-login server action are both
+    additionally gated on `devLoginEnabled`; `events.signIn` records the
+    real provider name. Residual (accepted): in a `--debug-prerender`
+    build the server-action *reference* is still registered, but it is
+    unreachable (absent provider → redirect) and the action body bails on
+    `!devLoginEnabled`.
+    Gate is enforced at two points:
       - `signIn` callback: strict initial check when a user first logs
         in. Denies on miss.
       - `authorized` callback: re-runs on every middleware-gated request.
@@ -2112,6 +2137,30 @@ auth:
     (see api.main._shared_secret_gate). The Next.js proxy at
     /app/api/backend/[...path] holds the secret and stamps it on
     every upstream request.
+  env_loading: |
+    Both halves of the app read one repo-root `.env`. The Python backend
+    walks up from `openexecutive/config.py` to find it. The UI does it in
+    `packages/ui/next.config.ts`: `packages/ui` is exactly two levels
+    below the repo root, so it resolves `../..`, confirms that dir with a
+    two-marker check (`Makefile` + `packages/core/`), parses the root
+    `.env` with the `dotenv` library, and copies in an EXPLICIT key
+    allow-list only — `AUTH_SECRET`, `AUTH_GOOGLE_ID`,
+    `AUTH_GOOGLE_SECRET`, `AUTH_DEV_LOGIN`, `ALLOWED_EMAILS`,
+    `BACKEND_SHARED_SECRET` — and only when that key is not already set
+    and its value is non-empty. Backend-only secrets, `NODE_OPTIONS`,
+    `NEXT_PUBLIC_*`, and deployment-topology keys (`AUTH_URL`,
+    `AUTH_TRUST_HOST`, `BACKEND_BASE_URL`, CORS origins) are deliberately
+    NOT copied — a repo-root `.env` filled for a Fly deploy would
+    otherwise point local `npm run dev` sign-in callbacks at the deployed
+    host. `next dev`/`next build` otherwise only load `.env*` from
+    `packages/ui/`, and a missing `AUTH_SECRET` makes Auth.js throw
+    `MissingSecret` on `/api/auth/session`. Precedence: exported shell
+    vars and anything Next already loaded from `packages/ui/.env*` always
+    win (the loader never overwrites an existing key); the repo-root file
+    only fills gaps. Inert in the Docker image (two-marker check fails at
+    `/app`; `.env` is dockerignored; Fly secrets inject config;
+    `next.config.ts` is not evaluated at runtime under `output:
+    "standalone"`).
   per_user_identity: |
     The Next.js proxy also stamps `x-caller-email` from the verified
     NextAuth session (lowercased) on every upstream request. The
