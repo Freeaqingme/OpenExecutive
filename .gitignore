@@ -22,6 +22,9 @@ coverage.xml
 # Company data — never commit
 packages/core/company/
 !packages/core/company/.gitkeep
+# config.py resolves the profile dir relative to the repo-root .env, so a
+# real run writes company/ at the repo root, not under packages/core/.
+/company/
 
 # Vector store
 *.chroma/
